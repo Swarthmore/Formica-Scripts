@@ -6,6 +6,9 @@
 
 # To run the program, use python stich_images.py <insert file path to top of file structure containing the images>
 
+# Notes:
+# - Currently the program only works with JPEG images
+
 # Andrew Ruether
 # Swarthmore College
 
@@ -19,7 +22,7 @@ import subprocess
 import glob
 import argparse
 import sys
-
+import ImageFont, ImageDraw
 
 ##################################################
 # Settings
@@ -58,32 +61,34 @@ if not os.path.exists(rootDir):
 
 # Start walking through the file tree starting at the specified file path
 for dirName,subdirList,fileList in os.walk( rootDir ) :
-   print "Found directory:" , dirName
-   for fname in fileList :
-      print "-" , fname
+  
+	print "Found directory:" , dirName
+	#for fname in fileList :
+	#   print "-" , fname
 
-
-for r,d,f in os.walk(path):
-	
-	# Create an array containing empty sub-arrays
+	# For each directory, create an array containing empty sub-arrays
 	picture_list = []
 	for i in range(positions):
 		picture_list.append(list())
 		
 	counter = 0;
 	
+	# Look through all the images
+	# Add image files matching the prefix and file extensions to the appropriate
+	# place in the array
 	for file in fileList:
 		counter = counter % positions
-		if file[-3:] in alist_filter:
+		if file.startswith(image_file_prefix) and file[-3:] in alist_filter:
 			# Save the picture paths in an array
-			path_to_file = os.path.join(r,file)
-			picture_list[counter].append(path_to_file)		
-			print counter
+			path_to_file = os.path.join(dirName,file)
+			picture_list[counter].append(path_to_file)	
+			print "  %d) added file %s" % (counter+1, path_to_file)
 			counter = counter + 1
 
-	#print picture_list
-	
-	# Loop through each set of files
+
+	# After all the matching files in the directory have been organized
+	# Loop through each set of files, creating soft links to the files
+	# The soft links are used to create properly numbered sequences
 	image_sequence = 0
 	for image_sets in picture_list:
 
@@ -93,26 +98,24 @@ for r,d,f in os.walk(path):
 		for i in glob.glob('img*.jpg'):
   			os.unlink (i)
 		
+		sequence_dir = os.path.join(dirName,"Seq_%02d" % (image_sequence+1))
+		os.mkdir(sequence_dir)
+		
 		counter = 0
 		for image in image_sets:
 			# Make a symlink
-			symlink_filepath = "img%010d.jpg" % counter
+			symlink_filepath = os.path.join(sequence_dir, "img%010d.jpg" % counter)
 			os.symlink(image, symlink_filepath) 
 			counter = counter+1
 			print "     adding image: %s" % image
 		
 		# Now process a single image sequence
-		ffmpeg_arguments = "ffmpeg -r 2 -i img%%010d.jpg -sameq -r 2  -vcodec mjpeg   ./seq%03d.mov" % image_sequence
+		ffmpeg_arguments = "ffmpeg -r 2 -i %s/img%%010d.jpg drawtext=\"fontfile=arial.ttf:text='blah':draw='eq(n,1)'\" -sameq -r 2  -vcodec mjpeg   ./seq%03d.mov" % (sequence_dir, image_sequence)
 		subprocess.call(ffmpeg_arguments, shell=True)    
 		
 		image_sequence = image_sequence + 1
 	
-	#ffmpeg_command = "ffmpeg -f image2 -i " + ' '.join(picture_list[0]) + " -vcodec mpeg4 -sameq a.mp4"
-	#print ffmpeg_command
-	
-    #subprocess.call(["ls", "-l"])    
-     #ffmpeg -f image2 -i img%d.jpg /tmp/a.mpg
     
 # Make sure all temp links to images are removed
-for i in glob.glob('img*.jpg'):
-	os.unlink (i)
+#for i in glob.glob('img*.jpg'):
+#	os.unlink (i)
