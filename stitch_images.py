@@ -16,13 +16,13 @@
 # Sources used to create program
 # http://pythoncentral.org/how-to-traverse-a-directory-tree/
 # http://stackoverflow.com/questions/2225564/python-get-a-filtered-list-of-files-in-directory
+# Installing PIL: http://stackoverflow.com/questions/9070074/how-to-install-pil-on-mac-os-x-10-7-2-lion/11368029#11368029
 
 import os
 import subprocess
 import glob
 import argparse
 import sys
-import ImageFont, ImageDraw
 
 ##################################################
 # Settings
@@ -36,6 +36,8 @@ image_file_prefix = "IMG_"
 # Types of file extensions used to find images
 alist_filter = ['JPG','jpg'] 
 
+# Output frame rate (frames per second)
+frame_rate = 2
 
 ##################################################
 
@@ -110,7 +112,7 @@ for dirName,subdirList,fileList in os.walk( rootDir ) :
 			print "     adding image: %s" % image
 		
 		# Now process a single image sequence
-		ffmpeg_arguments = "ffmpeg -r 2 -i %s/img%%010d.jpg drawtext=\"fontfile=arial.ttf:text='blah':draw='eq(n,1)'\" -sameq -r 2  -vcodec mjpeg   ./seq%03d.mov" % (sequence_dir, image_sequence)
+		ffmpeg_arguments = "ffmpeg -r 2 -i %s/img%010d.jpg drawtext=\"fontfile=arial.ttf:text='blah':draw='eq(n,1)'\" -sameq -r 2  -vcodec mjpeg   ./seq%03d.mov" % (sequence_dir, image_sequence)
 		subprocess.call(ffmpeg_arguments, shell=True)    
 		
 		image_sequence = image_sequence + 1
@@ -119,3 +121,8 @@ for dirName,subdirList,fileList in os.walk( rootDir ) :
 # Make sure all temp links to images are removed
 #for i in glob.glob('img*.jpg'):
 #	os.unlink (i)
+
+
+
+
+
