@@ -17,12 +17,16 @@
 # http://pythoncentral.org/how-to-traverse-a-directory-tree/
 # http://stackoverflow.com/questions/2225564/python-get-a-filtered-list-of-files-in-directory
 # Installing PIL: http://stackoverflow.com/questions/9070074/how-to-install-pil-on-mac-os-x-10-7-2-lion/11368029#11368029
+# http://code.activestate.com/recipes/576646-exif-date-based-jpeg-files-rename-using-pil/
 
 import os
 import subprocess
 import glob
 import argparse
 import sys
+from PIL import Image, ImageDraw, ImageFont
+from PIL.ExifTags import TAGS
+import errno
 
 ##################################################
 # Settings
@@ -40,6 +44,10 @@ alist_filter = ['JPG','jpg']
 frame_rate = 2
 
 ##################################################
+
+# Setup PIL (Python image library)
+font = ImageFont.truetype("Arial.ttf", 75)
+
 
 
 # Set up command line arguments
@@ -100,20 +108,62 @@ for dirName,subdirList,fileList in os.walk( rootDir ) :
 		for i in glob.glob('img*.jpg'):
   			os.unlink (i)
 		
+		# Create a directory for the sequence 
 		sequence_dir = os.path.join(dirName,"Seq_%02d" % (image_sequence+1))
-		os.mkdir(sequence_dir)
+		if not os.path.exists(rootDir):
+			os.mkdir(sequence_dir)
+		
+		
 		
 		counter = 0
 		for image in image_sets:
+		
 			# Make a symlink
 			symlink_filepath = os.path.join(sequence_dir, "img%010d.jpg" % counter)
-			os.symlink(image, symlink_filepath) 
-			counter = counter+1
+			try:
+				os.symlink(image, symlink_filepath)
+			except OSError, e:
+				if e.errno == errno.EEXIST:
+					os.remove(symlink_filepath)
+					os.symlink(image, symlink_filepath)
+					
 			print "     adding image: %s" % image
-		
+			
+			# Get the timestamp from the image
+			# Assume that we don't know it (in case it is unreadable)
+			timestamp = "Unknown"
+			try:
+				im = Image.open(image)
+				if hasattr(im, '_getexif'):
+					exifdata = im._getexif()
+					ctime = exifdata[0x9003]
+					timestamp = ctime
+			except: 
+				_type, value, traceback = sys.exc_info()
+				print "Error:\n%r", value
+       						
+			# Add a timestamp image
+			img = Image.new('RGBA',(1200, 100))
+			draw = ImageDraw.Draw(img)
+			draw.text((10, 10), timestamp, font=font, fill=(255, 255, 0))
+			timestamp_filepath = os.path.join(sequence_dir, "timestamp_%010d.png" % counter)
+			img.save(timestamp_filepath, 'PNG')	
+			
+			counter = counter+1
+			
 		# Now process a single image sequence
-		ffmpeg_arguments = "ffmpeg -r 2 -i %s/img%010d.jpg drawtext=\"fontfile=arial.ttf:text='blah':draw='eq(n,1)'\" -sameq -r 2  -vcodec mjpeg   ./seq%03d.mov" % (sequence_dir, image_sequence)
+		
+		#First make a video file of the timestamps
+		ffmpeg_arguments = "ffmpeg -r %s -i %s/timestamp_%%010d.png -sameq -r %s  -vcodec mjpeg  -y %s/_timestamp.mov" % (frame_rate, sequence_dir, frame_rate, sequence_dir)
 		subprocess.call(ffmpeg_arguments, shell=True)    
+		
+		# Then combine the images with the timestamp video
+		#ffmpeg_arguments = "ffmpeg -r 2 -i %s/img%%010d.jpg -sameq -r 2  -vcodec mjpeg   ./seq%03d.mov" % (sequence_dir, image_sequence)
+		ffmpeg_arguments = "ffmpeg -r %s -i %s/img%%010d.jpg -vf \"movie=%s/_timestamp.mov[clip2]; [in][clip2] overlay=0:overlay_h [out]\" -sameq -r %s  -vcodec mjpeg  -y %s/_seq%03d.mov" % (frame_rate, sequence_dir, sequence_dir, frame_rate, sequence_dir, image_sequence+1)
+		subprocess.call(ffmpeg_arguments, shell=True)    
+		
+		# Then remove the timestamp video
+		os.unlink ("%s/_timestamp.mov" % sequence_dir)
 		
 		image_sequence = image_sequence + 1
 	
@@ -121,8 +171,4 @@ for dirName,subdirList,fileList in os.walk( rootDir ) :
 # Make sure all temp links to images are removed
 #for i in glob.glob('img*.jpg'):
 #	os.unlink (i)
-
-
-
-
 
