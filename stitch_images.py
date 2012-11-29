@@ -99,8 +99,14 @@ update_status("The file path is: '%s'\nThe image file prefix is: '%s'" % (rootDi
 for dirName,subdirList,fileList in os.walk( rootDir ) :
   
 	update_status("Found directory: %s" % dirName)
+	# For debugging - print the list of files in the directory
 	#for fname in fileList :
 	#   print "-" , fname
+
+	# Check to see if this directory is marked as done.  If so, skip to next directory
+	if os.path.exists(os.path.join(dirName,"done")):
+		update_status("Directory %s marked as done already" % dirName)
+		continue;
 
 	# For each directory, create an array containing empty sub-arrays
 	picture_list = []
@@ -130,17 +136,21 @@ for dirName,subdirList,fileList in os.walk( rootDir ) :
 
 		update_status( "Now processing image sequence %d" % (image_sequence+1) )
 		
+		# If there aren't any images in this set, skip to the next set
+		if len(image_sets) < 1 :
+			update_status( "No matching images found in sequence %d -- skipping to next sequence" % (image_sequence+1) )
+			continue;
+		
+		
 		# Make sure to remove any pre-existing links to images
-		for i in glob.glob('img*.jpg'):
-  			os.unlink (i)
+		#for i in glob.glob('img*.jpg'):
+  		#	os.unlink (i)
 		
 		# Create a directory for the sequence 
-		sequence_dir = os.path.join(dirName,"Seq_%02d" % (image_sequence+1))
+		sequence_dir = os.path.join(dirName,"%02d_Seq" % (image_sequence+1))
 		if not os.path.exists(sequence_dir):
 			os.mkdir(sequence_dir)
-		
-		
-		
+	
 		counter = 0
 		for image in image_sets:
 		
@@ -178,33 +188,41 @@ for dirName,subdirList,fileList in os.walk( rootDir ) :
 			counter = counter+1
 			
 		# Now process a single image sequence
-		# as long there at least one image
-		if counter != 0:
+	
+		#First make a video file of the timestamps
+		ffmpeg_arguments = "ffmpeg -r %s -i \"%s/timestamp_%%010d.png\" -sameq -r %s  -vcodec mjpeg  -y \"%s/_timestamp.mov\"" % (frame_rate, sequence_dir, frame_rate, sequence_dir)
+		update_status(ffmpeg_arguments)
+		subprocess.call(ffmpeg_arguments, shell=True)    
+			
+		# Then combine the images with the timestamp video
+		#ffmpeg_arguments = "ffmpeg -r 2 -i %s/img%%010d.jpg -sameq -r 2  -vcodec mjpeg   ./seq%03d.mov" % (sequence_dir, image_sequence)
+		ffmpeg_arguments = "ffmpeg -r %s -i \"%s/img%%010d.jpg\" -vf \"movie=%s/_timestamp.mov[clip2]; [in][clip2] overlay=0:overlay_h [out]\" -sameq -r %s  -vcodec mjpeg  -y \"%s/_seq%03d.mov\"" % (frame_rate, sequence_dir, sequence_dir, frame_rate, sequence_dir, image_sequence+1)
+		update_status(ffmpeg_arguments)
+		subprocess.call(ffmpeg_arguments, shell=True)    
 		
-			#First make a video file of the timestamps
-			ffmpeg_arguments = "ffmpeg -r %s -i %s/timestamp_%%010d.png -sameq -r %s  -vcodec mjpeg  -y %s/_timestamp.mov" % (frame_rate, sequence_dir, frame_rate, sequence_dir)
-			update_status(ffmpeg_arguments)
-			subprocess.call(ffmpeg_arguments, shell=True)    
-			
-			# Then combine the images with the timestamp video
-			#ffmpeg_arguments = "ffmpeg -r 2 -i %s/img%%010d.jpg -sameq -r 2  -vcodec mjpeg   ./seq%03d.mov" % (sequence_dir, image_sequence)
-			ffmpeg_arguments = "ffmpeg -r %s -i %s/img%%010d.jpg -vf \"movie=%s/_timestamp.mov[clip2]; [in][clip2] overlay=0:overlay_h [out]\" -sameq -r %s  -vcodec mjpeg  -y %s/_seq%03d.mov" % (frame_rate, sequence_dir, sequence_dir, frame_rate, sequence_dir, image_sequence+1)
-			update_status(ffmpeg_arguments)
-			subprocess.call(ffmpeg_arguments, shell=True)    
-			
-			# Then remove the timestamp video (if it exists)
-			if os.path.exists("%s/_timestamp.mov" % sequence_dir): 
-				os.unlink ("%s/_timestamp.mov" % sequence_dir)
+		# Then remove the timestamp video (if it exists)
+		if os.path.exists("%s/_timestamp.mov" % sequence_dir): 
+			os.unlink ("%s/_timestamp.mov" % sequence_dir)
+		
+		# Mark this directory as complete by placing an empty file named "done" in the folder
+		done_file = open(os.path.join(sequence_dir, "done"), 'a+')
+		done_file.close()
 		
 		image_sequence = image_sequence + 1
 	
+	# Mark the top level folder complete by placing an empty file named "done" in the folder
+	done_file = open(os.path.join(dirName, "done"), 'a+')
+	done_file.close()
+		
+	
+
     
 # Make sure all temp links to images are removed - Vince wants these left in
 #for i in glob.glob('img*.jpg'):
 #	os.unlink (i)
 
 update_status("Complete")
-
+log.close()
 
 
 
