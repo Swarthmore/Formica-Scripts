@@ -108,9 +108,9 @@ for dirName,subdirList,fileList in os.walk( rootDir ) :
 			update_status( "  Found video file %s" % (path_to_file))
 	
 	
-	# If no matching videos were found, go to the next directory
-	if len(video_list) < 1 :
-		update_status( "No matching videos found in %s.  Moving to next duirectory" % dirName )
+	# If there weren't at least two videofound, go to the next directory
+	if len(video_list) < 2 :
+		update_status( "Zero or one video found in %s.  Moving to next duirectory" % dirName )
 		continue
 	
 	# After all the matching files in the directory have been organized
