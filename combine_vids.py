@@ -110,12 +110,12 @@ for dirName,subdirList,fileList in os.walk( rootDir ) :
 	
 	# If there weren't at least two videofound, go to the next directory
 	if len(video_list) < 2 :
-		update_status( "Zero or one video found in %s.  Moving to next duirectory" % dirName )
+		update_status( "Zero or one video found in %s.  Moving to next directory" % dirName )
 		continue
 	
 	# After all the matching files in the directory have been organized
 	# create the video
-	ffmpeg_arguments = "ffmpeg -i concat:\"%s\" -s %s -vcodec mpeg4 -strict -2 -an -sameq combined_video.mp4" 	% ('|'.join(video_list), video_size)
+	ffmpeg_arguments = "ffmpeg -i concat:\"%s\" -s %s -vcodec mpeg4 -strict -2 -an -sameq %s/combined_video.mp4" 	% ('|'.join(video_list), video_size,dirName)
 	update_status(ffmpeg_arguments)
 	subprocess.call(ffmpeg_arguments, shell=True)    
 
