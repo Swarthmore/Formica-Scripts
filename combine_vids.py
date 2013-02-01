@@ -115,7 +115,7 @@ for dirName,subdirList,fileList in os.walk( rootDir ) :
 	
 	# After all the matching files in the directory have been organized
 	# create the video
-	ffmpeg_arguments = "ffmpeg -i concat:\"%s\" -s %s -vcodec mpeg4 -strict -2 -an -sameq %s/combined_video.mp4" 	% ('|'.join(video_list), video_size,dirName)
+	ffmpeg_arguments = "ffmpeg -i concat:\"%s\" -s %s -vcodec mpeg4 -strict -2 -an -sameq \"%s/combined_video.mp4\"" 	% ('|'.join(video_list), video_size,dirName)
 	update_status(ffmpeg_arguments)
 	subprocess.call(ffmpeg_arguments, shell=True)    
 
