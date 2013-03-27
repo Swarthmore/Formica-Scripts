@@ -27,7 +27,7 @@ import time
 video_file_prefix = "M"
 
 # Types of file extensions used to find videos
-alist_filter = ['mpg','MPG'] 
+alist_filter = ['mpg','MPG', 'MTS', 'mts'] 
 
 # Video size
 video_size = "872x480"
